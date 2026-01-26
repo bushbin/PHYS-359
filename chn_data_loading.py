@@ -1,45 +1,12 @@
-"""
-Example script showing use of mcphysics.data to load *.CHN files 
-and subsequent manipulation of spinmob databoxes containing the data.
-
-You need the companion .chn file, "Example_data.chn" to run this script.
-
-Author: Brandon Ruffolo
-"""
 import mcphysics.data as m
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 
 data = m.load_chn("Long_Am_Run.Chn")
+uncertainties = np.sqrt(data['Counts'])
 
-
-# Print the hkeys (metadata fields)
-print("hkeys: ")
-print(data.hkeys)
-print()
-
-
-# Print the start time of the run
-print("Start time: ")
-print(data.h('start_time'))
-print()
-
-# Print the run description (if you enetered one!)
-print("Run description:")
-print(data.h('description')) 
-print()
-
-# Print the ckeys (data fields)
-print("ckeys: ")
-print(data.ckeys)
-print()
-
-# Print the channel data (array spanning from 0 to 2047, since the MCA is 11-bit)
-print("Channel data: ")
-print(data['Channel'])
-print()
-
+print(data.h('live_time'))
 
 plt.figure()
 plt.plot(data['Channel'],data['Counts'])
@@ -73,6 +40,8 @@ p0 = [A0, max_index, sigma0, B0]
 
 params, cov = curve_fit(gaussian_bg, x_fit, y_fit, p0=p0)
 
+print(np.sqrt(cov[1,1]))
+
 A, x0, sigma, B = params
 
 print(f"Peak channel (fit): {x0:.2f}")
@@ -84,8 +53,9 @@ x_fine = np.linspace(fit_min, fit_max, 1000)
 y_fine = gaussian_bg(x_fine, *params)
 
 plt.figure()
-plt.plot(x_fit, y_fit, 'o', label="Data")
-plt.plot(x_fine, y_fine, '-', label="Gaussian fit")
+plt.plot(x_fit, y_fit, 'o', label="Data", color='red' )
+plt.plot(x_fine, y_fine, '-', label="Gaussian fit", color='blue')
+plt.errorbar(x_fit, y_fit, np.sqrt(y_fit), fmt='o', capsize=4, color='red')
 plt.xlabel("Channel Number")
 plt.ylabel("Counts")
 plt.legend()
@@ -93,18 +63,24 @@ plt.show()
 plt.show(block=True)
 
 residuals = y_fit - gaussian_bg(x_fit, *params)
+norm_residuals = residuals / np.sqrt(y_fit)
+residual_errors = np.ones_like(norm_residuals)
 
 plt.figure()
-plt.subplot(2,1,1)
-plt.plot(x_fit, y_fit, 'o', label='Data')
-plt.plot(x_fine, y_fine, '-', label='Fit')
-plt.legend()
-
-plt.subplot(2,1,2)
-plt.plot(x_fit, residuals, 'o')
-plt.axhline(0, color='k')
-plt.ylabel("Residuals")
-plt.xlabel("Channel")
-
-plt.show()
+plt.plot(x_fit, norm_residuals, 'o')
+plt.errorbar(
+    x_fit, norm_residuals,
+    yerr=residual_errors,  # ±1 for each residual
+    fmt='o',              # marker
+    color='red',       # marker color
+    ecolor='gray',        # error bar color
+    capsize=2,
+    label='Residuals'
+)
+plt.axhline(0, linestyle='--')
+plt.xlabel("Channel Number")
+plt.ylabel("Normalized Residuals")
 plt.show(block=True)
+
+
+# Now can define an alpha window based on the acquired sigma
