@@ -1,0 +1,11 @@
+set_detector 00003
+stop
+set_preset_clear
+set_preset_live 216
+loop 400
+	clear
+	start
+	wait
+	stop
+	save "Pb_First???.chn"
+end_loop
